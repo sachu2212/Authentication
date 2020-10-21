@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express    = require("express"),
       app        = express();
       bodyParser = require("body-parser"),
@@ -18,8 +19,7 @@ const userSchema = new mongoose.Schema ({
 });
 
 // MONGOOSE-ENCRYPTION PACKAGE USED
-const secret = "ThisismyAuthenticationProject!";
-userSchema.plugin(encrypt, { secret: secret , encryptedFields: ["password"]});
+userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"]});
 
 const User = mongoose.model("User", userSchema);
 
@@ -64,9 +64,11 @@ app.post("/login", (req, res) => {
                     res.render("secrets");
                     // console.log(foundUser.password);                // If hacker hacks the website then he can easily decrypt the password by getting into the app.js so it should be fix in the next level
                 } else {
-                    res.send("Check your Username/ password and try again!");
+                    res.send("Check your Username/password and try again!");
                 }
-            } 
+            } else {
+                res.send("We didn't found in our Database!");
+            }
         }
     });
 
