@@ -4,7 +4,11 @@ const express    = require("express"),
       bodyParser = require("body-parser"),
       ejs        = require("ejs"),
       mongoose   = require("mongoose"),
-      encrypt    = require("mongoose-encryption");
+    //   encrypt    = require("mongoose-encryption");
+    //   md5        = require("md5");
+      bcrypt     = require("bcrypt");
+
+const saltRounds = 10;
 
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({
@@ -19,7 +23,7 @@ const userSchema = new mongoose.Schema ({
 });
 
 // MONGOOSE-ENCRYPTION PACKAGE USED
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"]});
+// userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ["password"]});
 
 const User = mongoose.model("User", userSchema);
 
@@ -36,16 +40,19 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-    const newUser = new User({
-        email: req.body.username,
-        password: req.body.password
-    });
-    newUser.save((err) => {
-        if(err) {
-            console.log(err);
-        } else {
-            res.render("secrets");
-        }
+
+    bcrypt.hash(req.body.password, saltRounds, (err, hash) => {
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
+        });
+        newUser.save((err) => {
+            if(err) {
+                console.log(err);
+            } else {
+                res.render("secrets");
+            }
+        });
     });
 
 });
@@ -60,15 +67,17 @@ app.post("/login", (req, res) => {
             console.log(err);
         } else {
             if(foundUser) {
-                if(foundUser.password === password) {
-                    res.render("secrets");
-                    // console.log(foundUser.password);                // If hacker hacks the website then he can easily decrypt the password by getting into the app.js so it should be fix in the next level
-                } else {
-                    res.send("Check your Username/password and try again!");
+                // if(foundUser.password === password) {
+                //     res.render("secrets");
+                //     // console.log(foundUser.password);                // If hacker hacks the website then he can easily decrypt the password by getting into the app.js so it should be fix in the next level
+                // }
+
+                bcrypt.compare(password, foundUser.password, (err, result) => {
+                    if(result === true) {
+                        res.render("secrets");
+                    }
+                });
                 }
-            } else {
-                res.send("We didn't found in our Database!");
-            }
         }
     });
 
