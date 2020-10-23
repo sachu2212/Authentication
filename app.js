@@ -40,7 +40,8 @@ mongoose.set("useCreateIndex", true);     // deprication warning
 const userSchema = new mongoose.Schema ({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 // MONGOOSE-ENCRYPTION PACKAGE USED
@@ -114,11 +115,47 @@ app.get("/register", (req, res) => {
 
 // IF USER GO DIRECTLY TO SECRETS PAGE THEN WE HAVE TO FIRST AUTHENTICATE!!
 app.get("/secrets", (req, res) => {
+
+    // if(req.isAuthenticated()) {
+    //     res.render("secrets");
+    // } else {
+    //     res.redirect("/login");
+    // }
+
+    User.find({"secret": {$ne: null}}, (err, foundUser) => {
+        if(err) {
+            console.log(err);
+        } else {
+            if(foundUser) {
+                res.render("secrets", {usersWithSecrets: foundUser});
+            }
+        }
+    });
+});
+
+app.get("/submit", (req, res) => {
     if(req.isAuthenticated()) {
-        res.render("secrets");
+        res.render("submit");
     } else {
         res.redirect("/login");
     }
+});
+
+app.post("/submit", (req, res) => {
+    const submittedSecret = req.body.secret;
+
+    User.findById(req.user.id, (err, foundUser) => {
+        if(err) {
+            console.log(err);
+        } else {
+            if(foundUser) {
+                foundUser.secret = submittedSecret;
+                foundUser.save(function() {
+                    res.redirect("/secrets");
+                });
+            }
+        }
+    });
 });
 
 app.get("/logout", (req, res) => {
