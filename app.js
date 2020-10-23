@@ -11,7 +11,9 @@ const express    = require("express"),
 //    bcrypt     = require("bcrypt");
       session    = require("express-session"),
       passport   = require("passport"),
-      passportLocalMongoose = require("passport-local-mongoose");
+      passportLocalMongoose = require("passport-local-mongoose"),
+      GoogleStrategy        = require("passport-google-oauth20").Strategy,
+      findOrCreate          = require("mongoose-findorcreate");
 
 // const saltRounds = 10;
 
@@ -37,7 +39,8 @@ mongoose.set("useCreateIndex", true);     // deprication warning
 
 const userSchema = new mongoose.Schema ({
     email: String,
-    password: String
+    password: String,
+    googleId: String
 });
 
 // MONGOOSE-ENCRYPTION PACKAGE USED
@@ -46,16 +49,60 @@ const userSchema = new mongoose.Schema ({
 // SETUP passportLocalMongoose Plugin
 userSchema.plugin(passportLocalMongoose);
 
+//SETUP findOrCreate Plugin
+userSchema.plugin(findOrCreate);
+
 const User = mongoose.model("User", userSchema);
 
 // Use passportLocalMongoose Plugin
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+
+// passport.serializeUser(User.serializeUser());
+// passport.deserializeUser(User.deserializeUser());
+
+// REPLACED ABOVE CODE WITH BELOW
+passport.serializeUser(function(user, done) {
+    done(null, user.id);
+  });
+  
+  passport.deserializeUser(function(id, done) {
+    User.findById(id, function(err, user) {
+      done(err, user);
+    });
+  });
+
+// GOOGLE OAUTH20
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/secrets",
+
+    // GOOGLE PLUS DEPRECATED
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      return cb(err, user);
+    });
+  }
+));
+
 
 app.get("/", (req, res) => {
     res.render("home");
 });
+
+// TO BRING POP-UP TO SIGN IN/UP
+app.get("/auth/google",
+    passport.authenticate("google", { scope: ["profile"] })
+);
+
+app.get("/auth/google/secrets", 
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  function(req, res) {
+    // Successful authentication, redirect secrets.
+    res.redirect("/secrets");
+  });
 
 app.get("/login", (req, res) => {
     res.render("login");
